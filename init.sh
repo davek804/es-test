@@ -5,8 +5,8 @@
 SECURITY_GROUP=esearch-sg
 SECURITY_GROUP_ID=sg-7bf86100
 AMI=ami-4836a428
-INSTANCE=i-05aee954fa26c6bb0
-EC2_IP=35.165.153.109
+INSTANCE=i-00a85ad003d01f8ee
+EC2_IP=35.165.215.96
 OUR_IP=$(curl -s ipinfo.io/ip)
 EC2_KEY=elasticsearch-key.pem
 # That'll do. 
@@ -36,7 +36,7 @@ else
 	aws ec2 create-security-group --group-name "$securityGroup" --description "security group for elastic search environment in EC2" 
 	# Make sure we have the security group ID stored for later, when we need to make the instance. 
 	SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --group-names esearch-sg --query SecurityGroups[0].GroupId | sed 's/\"//g')
-	echo "We will also need to allow incoming traffic, taking care of that. "
+	echo "We will also need to allow incoming/outgoing traffic, taking care of that. "
 	aws ec2 authorize-security-group-ingress --group-name "$SECURITY_GROUP" --protocol tcp --port "9200" --cidr "$OUR_IP"/32
 	aws ec2 authorize-security-group-ingress --group-name "$SECURITY_GROUP" --protocol tcp --port "22" --cidr "$OUR_IP"/32
 	aws ec2 authorize-security-group-egress --group-id "$SECURITY_GROUP_ID " --ip-permissions '[{"IpProtocol": "tcp", "FromPort": 0, "ToPort": 65535, "IpRanges": [{"CidrIp": "0.0.0.0/0"}]}]'
@@ -80,15 +80,16 @@ echo " "
 sleep 1
 
 echo "Now we have everything needed to connect to the instance and install ElasticSearch!"
+echo "Hang tight while we sleep five minutes to make sure the instance is up and running."
 echo " "
-sleep 1
+sleep 300
 
 echo "We'll use rsync instead of SCP to only copy the ElasticSearch zip if it's needed. "
 rsync -a --ignore-existing -rave "ssh -i $EC2_KEY" es.zip ec2-user@$EC2_IP:~/
 echo " "
 sleep 1
 
-echo "Unfortunately our EC2 probably doesn't have the required version of Java. This has literally never ever happened before."
+echo "Unfortunately our EC2 probably doesn't have the required version of Java. This has literally never ever happened before. ;)"
 echo "Let's install Java 1.8 and remove 1.7"
 ssh -i $EC2_KEY ec2-user@$EC2_IP /bin/bash << EOF
 	sudo yum -y install java-1.8.0
@@ -98,8 +99,8 @@ echo " "
 sleep 1
 
 echo "Add some swap space to deal with elastic search wanting more memory"
-echo "TODO! Make this dynamic and only happen once."
-ssh -i elasticsearch-key.pem ec2-user@"$ipaddress" 'sudo dd if=/dev/zero of=/swapfile bs=1M count=3800;sudo mkswap /swapfile; sudo swapon /swapfile' 
+# "TODO! Make this dynamic and only happen once."
+ssh -i $EC2_KEY ec2-user@$EC2_IP 'sudo dd if=/dev/zero of=/swapfile bs=1M count=3800;sudo mkswap /swapfile; sudo swapon /swapfile' 
 echo " "
 sleep 1
 
@@ -126,7 +127,7 @@ rsync -a --ignore-existing -rave "ssh -i $EC2_KEY" instances.yml ec2-user@$EC2_I
 # echo "xpack.security.http.ssl.enabled: true" >> /home/ec2-user/es/config/elasticsearch.yml
 
 echo "Let's launch ElasticSearch so we don't need to worry about relaunching it later, unless the box reboots (launch as daemon): "
-cd es/bin; ./elasticsearch  -Ecluster.name=my_cluster -Enode.name=my_node_name -d
+ssh -i $EC2_KEY ec2-user@$EC2_IP 'cd /home/ec2-user/es/bin; ./elasticsearch  -Ecluster.name=my_cluster -Enode.name=my_node_name -d'
 echo "Sleeping for 20 seconds to let things get settled. "
 sleep 20
 
