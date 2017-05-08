@@ -16,8 +16,7 @@ This repo will es launch an AWS VM running an Elasticsearch service secured with
 2) Run `init.sh`. 
 3) Confirm the final output of the `init.sh` script is an echo that states `Elasticsearch installed, running, and secured with a non-default password.`. Above that, you should see the JSON response from a successfully queried Elasticsearch instance, using a non-default password. 
 
-** Conversation Street ** 
-My goal for this script was something along these lines: 
+** Conversation Street **  
 1) Brings up an AWS instance
 2) Installs ElasticSearch configured in a way that requires credentials and provides encrypted communication
 3) Demonstrates that it is functioning
